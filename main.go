@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/MarinX/keylogger"
@@ -11,7 +12,7 @@ import (
 
 const (
 	LogEveryMinutes = 10
-	SavePath        = "keystats.json"
+	StateFile       = "/var/lib/keystats/keystats.json"
 )
 
 type KeyLog map[string]int
@@ -27,7 +28,7 @@ func (kl *KeyLog) save() error {
 	if err != nil {
 		return err
 	}
-	os.WriteFile(SavePath, jsonString, 0o644)
+	os.WriteFile(StateFile, jsonString, 0o644)
 	return nil
 }
 
@@ -36,7 +37,7 @@ func (kl *KeyLog) save() error {
 func loadKeyLog() KeyLog {
 	keylog := make(KeyLog)
 
-	s, err := os.ReadFile(SavePath)
+	s, err := os.ReadFile(StateFile)
 	if err != nil {
 		return keylog
 	}
@@ -85,7 +86,14 @@ func spawnTimer(minutes int) chan struct{} {
 	return ch
 }
 
+func ensureStateDir() error {
+	dir := filepath.Dir(StateFile)
+	return os.MkdirAll(dir, 0o700)
+}
+
 func main() {
+	ensureStateDir()
+
 	device := keylogger.FindAllKeyboardDevices()
 	fmt.Println("Found devices:", device)
 
@@ -110,7 +118,7 @@ func main() {
 			log.log(key)
 		case <-timer:
 			log.save()
-			fmt.Println("Saved to:", SavePath)
+			fmt.Println("Saved to:", StateFile)
 		}
 	}
 }
