@@ -13,6 +13,7 @@ import (
 const (
 	LogEveryMinutes = 10
 	StateFile       = "/var/lib/keystats/keystats.json"
+	TotalKey        = "TOTAL"
 )
 
 type KeyLog map[string]int
@@ -20,6 +21,7 @@ type KeyLog map[string]int
 // log logs a key press
 func (kl KeyLog) log(key string) {
 	kl[key] += 1
+	kl[TotalKey] += 1
 }
 
 // save saves the KeyLog to the JSON file. It overwrites any existing file.
