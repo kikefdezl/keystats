@@ -20,6 +20,9 @@ type KeyLog map[string]int
 
 // log logs a key press
 func (kl KeyLog) log(key string) {
+	if key == "" {
+		return
+	}
 	kl[key] += 1
 	kl[TotalKey] += 1
 }
