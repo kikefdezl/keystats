@@ -99,7 +99,7 @@ func ensureStateDir() error {
 	return os.MkdirAll(dir, 0o700)
 }
 
-func tryGetDevice() (string, error) {
+func getDevice() (string, error) {
 	devices := keylogger.FindAllKeyboardDevices()
 	fmt.Println("Found devices:", devices)
 
@@ -152,11 +152,11 @@ func main() {
 	ensureStateDir()
 
 	for {
-		device, err := tryGetDevice()
+		device, err := getDevice()
 		for err != nil {
 			fmt.Println(err)
 			time.Sleep(1 * time.Second)
-			device, err = tryGetDevice()
+			device, err = getDevice()
 		}
 
 		keyStream, err := listenToDevice(device)
