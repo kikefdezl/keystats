@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -15,6 +16,7 @@ const (
 	LogEveryMinutes = 10
 	StateFile       = "/var/lib/keystats/keystats.json"
 	TotalKey        = "TOTAL"
+	DeviceIdx       = 1
 )
 
 type KeyLog map[string]int
@@ -97,39 +99,79 @@ func ensureStateDir() error {
 	return os.MkdirAll(dir, 0o700)
 }
 
-func main() {
-	debug := flag.Bool("debug", false, "enable debug output")
-	flag.Parse()
+func tryGetDevice() (string, error) {
+	devices := keylogger.FindAllKeyboardDevices()
+	fmt.Println("Found devices:", devices)
 
-	ensureStateDir()
-
-	device := keylogger.FindAllKeyboardDevices()
-	fmt.Println("Found devices:", device)
-
-	if len(device) == 0 {
-		fmt.Println("No keyboard devices found.")
-		return
+	if len(devices) == 0 {
+		return "", errors.New("No keyboard devices found")
 	}
 
-	keys, err := listenToDevice(device[1])
-	if err != nil {
-		fmt.Println("Error setting up keylogger. Are you running as root?")
-		return
+	if DeviceIdx >= len(devices) {
+		message := fmt.Sprintf("DeviceIdx %d is out of bounds.", DeviceIdx)
+		return "", errors.New(message)
 	}
+	return devices[DeviceIdx], nil
+}
 
-	timer := spawnTimer(LogEveryMinutes)
-
+func logKeys(keyStream chan string, timer chan struct{}) {
 	log := loadKeyLog()
 	for {
 		select {
-		case key := <-keys:
-			if *debug {
-				fmt.Println(key)
+		case key := <-keyStream:
+			// This "" happens when you disconnect the keyboard, a burst of empty strings is sent.
+			// In this case we want to exit to poll for a keyboard device again.
+			if key == "" {
+				log.save()
+				return
 			}
 			log.log(key)
 		case <-timer:
 			log.save()
 			fmt.Println("Saved to:", StateFile)
 		}
+	}
+}
+
+func logKeysDebug(keys chan string) {
+	log := loadKeyLog()
+	for key := range keys {
+		if key == "" {
+			fmt.Println("empty!")
+			return
+		}
+		fmt.Println(key)
+		log.log(key)
+	}
+}
+
+func main() {
+	debug := flag.Bool("debug", false, "enable debug output")
+	flag.Parse()
+
+	ensureStateDir()
+
+	for {
+		device, err := tryGetDevice()
+		for err != nil {
+			fmt.Println(err)
+			time.Sleep(1 * time.Second)
+			device, err = tryGetDevice()
+		}
+
+		keyStream, err := listenToDevice(device)
+		if err != nil {
+			fmt.Println("Error setting up keylogger. Are you running as root?")
+			return
+		}
+
+		timer := spawnTimer(LogEveryMinutes)
+
+		if *debug {
+			logKeysDebug(keyStream)
+		} else {
+			logKeys(keyStream, timer)
+		}
+
 	}
 }
