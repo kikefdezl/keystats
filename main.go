@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	LogEveryMinutes = 10
+	LogEveryMinutes = 1
 	StateFile       = "/var/lib/keystats/keystats.json"
 	TotalKey        = "TOTAL"
 	DeviceIdx       = 1
